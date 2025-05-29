@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -73,10 +73,10 @@ RUN if [ -n "$HF_TKN_FILE" ]; then \
       echo "No Hugging Face token file specified, skipping token setup"; \
     fi
     
-# Expose port for the transcription server
-EXPOSE 8000
+# # Expose port for the transcription server
+# EXPOSE 8000
 
-ENTRYPOINT ["whisperlivekit-server", "--host", "0.0.0.0"]
+# ENTRYPOINT ["whisperlivekit-server", "--host", "0.0.0.0"]
 
-# Default args
-CMD ["--model", "tiny.en"]
+# # Default args
+# CMD ["--model", "tiny.en"]

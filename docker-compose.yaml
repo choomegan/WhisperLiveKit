@@ -1,0 +1,21 @@
+
+services:
+  whisperlivekit:
+    build:
+      context: .
+      args:
+        EXTRAS: diarization
+    container_name: whisperlivekit-base
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./whisperlivekit:/app/whisperlivekit
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["whisperlivekit-server", "--host", "0.0.0.0", "--model", "base", "--log-level", "DEBUG", "--vac"]
+
