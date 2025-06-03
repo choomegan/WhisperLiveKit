@@ -1,15 +1,16 @@
-
 services:
   whisperlivekit:
     build:
       context: .
       args:
         EXTRAS: diarization
-    container_name: whisperlivekit-base
+    container_name: whisperlivekit
     ports:
       - "8000:8000"
     volumes:
-      - ./whisperlivekit:/app/whisperlivekit
+      - ./whisperlivekit:/app/whisperlivekit # mount only whisperlivekit but don't overwrite dependencies (pip install -e)
+      - ./test:/app/test
+      - /mnt/d/MEGAN/data:/datasets
     deploy:
       resources:
         reservations:
@@ -17,5 +18,5 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    command: ["whisperlivekit-server", "--host", "0.0.0.0", "--model", "base", "--log-level", "DEBUG", "--vac"]
+    command: ["whisperlivekit-server", "--host", "0.0.0.0", "--model", "base", "--log-level", "INFO", "--vac"]
 
