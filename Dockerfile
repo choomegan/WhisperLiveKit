@@ -21,6 +21,7 @@ RUN apt-get update && \
         python3 \
         python3-pip \
         ffmpeg \
+        portaudio19-dev \
         git && \
     rm -rf /var/lib/apt/lists/*
 
