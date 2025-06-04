@@ -132,4 +132,4 @@ dmypy.json
 run_*.sh
 
 # logging files
-.txt
+*.txt
