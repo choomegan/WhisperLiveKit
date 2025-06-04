@@ -4,7 +4,10 @@ To start the server and web client, run:
 docker compose up
 ```
 
-If you want to change the configurations (e.g. change whisper size, enable vac), edit the `command` in docker-compose.yaml to specify the config.
+If you want to change the configurations (e.g. change whisper size, enable vac, enable diarization), edit the `command` in docker-compose.yaml to specify the config.
+
+For diarization we are using pyannote models, follow instructions in README.md to accept the the user conditions on huggingface. Create file `hf_token.txt` and place hugginface token there. It will be read as a ENV variable during `docker compose up`.
+
 
 ## Testing
 There is a testing script available under `/test`, which creates a websocket client and mocks a stream, without the need to record audio through the microphone in the frontend.
@@ -31,3 +34,5 @@ To view the transcript updates while it is processing, in another terminal you c
 ```
 tail -f test/{output_file_name}.txt
 ```
+
+This testing script does not work for diarization yet.
