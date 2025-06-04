@@ -11,9 +11,25 @@ import time
 import soundfile as sf
 import websockets
 
-FILEPATH = "/datasets/AMI/EN2001a/audio/EN2001a.Headset-4.wav"
-LOGFILE = "OUTPUTZ_start_176s.txt"
+FILEPATH = "/datasets/Boston/boston_1e3ef01f-60b5-4bbc-a212-dba46c06bc81_RESAMPLED.mp3"
+LOGFILE = "meeting.txt"
 CHUNK_SIZE = 1024  # Tune this to simulate streaming
+START_FROM = 0 # seconds. put 0 if from beginning
+BYTES_PER_SECOND = 16000 # initially tried 32000 to simulate real-time playback rate (~16kHz mono PCM) but it was causing client disconnects with keepalive ping timeout
+
+async def manual_ping(ws):
+    while True:
+        try:
+            print("Sending ping...")
+            pong_waiter = await ws.ping()
+            await asyncio.wait_for(pong_waiter, timeout=10)
+            print("✅ Pong received")
+        except asyncio.TimeoutError:
+            print("❌ Pong NOT received within timeout")
+        except websockets.ConnectionClosed:
+            print("WebSocket connection closed.")
+            break
+        await asyncio.sleep(5)  # Ping every 5 seconds
 
 
 async def receive_loop(ws, log_file=LOGFILE):
@@ -26,8 +42,8 @@ async def receive_loop(ws, log_file=LOGFILE):
     try:
         while True:
             msg = await ws.recv()
-            # print("RECV:", msg)
             data = json.loads(msg)
+            # print(data)
 
             lines = data.get("lines", [])
             if not lines:
@@ -99,7 +115,7 @@ async def stream_audio_with_ffmpeg(file_path, uri="ws://localhost:8000/asr"):
     # Start FFmpeg to convert PCM/WAV → WebM (Opus)
     ffmpeg_cmd = [
         "ffmpeg",
-        # "-ss", '176',           # <-- Seek here: start from a certain duration
+        "-ss", str(START_FROM),           # <-- Seek here: start from a certain duration
         "-i",
         file_path,
         "-f",
@@ -121,10 +137,10 @@ async def stream_audio_with_ffmpeg(file_path, uri="ws://localhost:8000/asr"):
 
         # Receiving happens concurrently to sending bytes
         recv_task = asyncio.create_task(receive_loop(ws))
+        ping_task = asyncio.create_task(manual_ping(ws))
 
         start_time = time.time()
         bytes_sent = 0
-        BYTES_PER_SECOND = 32000  # Simulated real-time playback rate (~16kHz mono PCM)
 
         # Send bytes to the server
         try:
@@ -152,6 +168,7 @@ async def stream_audio_with_ffmpeg(file_path, uri="ws://localhost:8000/asr"):
         finally:
             await ws.close()
             await recv_task
+            await ping_task
 
 
 if __name__ == "__main__":
