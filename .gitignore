@@ -130,3 +130,6 @@ dmypy.json
 
 *.wav
 run_*.sh
+
+# logging files
+.txt
