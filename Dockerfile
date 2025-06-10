@@ -34,10 +34,10 @@ COPY . .
 #         for more details.
 RUN if [ -n "$EXTRAS" ]; then \
       echo "Installing with extras: [$EXTRAS]"; \
-      pip install --no-cache-dir .[$EXTRAS]; \
+      pip install --no-cache-dir -e .[$EXTRAS]; \
     else \
       echo "Installing base package only"; \
-      pip install --no-cache-dir .; \
+      pip install --no-cache-dir -e .; \
     fi
 
 # Enable in-container caching for Hugging Face models by: 
