@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional
 from whisperlivekit.timed_objects import ASRToken, Sentence, Transcript
 
 logger = logging.getLogger(__name__)
-
+# logger.setLevel(logging.DEBUG)
 
 class HypothesisBuffer:
     """
@@ -194,8 +194,10 @@ class OnlineASRProcessor:
         logger.debug(
             f"Transcribing {len(self.audio_buffer)/self.SAMPLING_RATE:.2f} seconds from {self.buffer_time_offset:.2f}"
         )
-        res = self.asr.transcribe(self.audio_buffer, init_prompt=prompt_text)
-        tokens = self.asr.ts_words(res)
+        # FIXME: add condition based on whether we are running monolith or making external request
+        # under whisper_streaming_custom/backends.py
+        res = self.asr.send_transcription_request(self.audio_buffer, init_prompt=prompt_text)
+        tokens = self.asr.ts_words_request(res)
         self.transcript_buffer.insert(tokens, self.buffer_time_offset)
         committed_tokens = self.transcript_buffer.flush()
         self.committed.extend(committed_tokens)
