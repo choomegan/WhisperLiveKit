@@ -1,0 +1,5 @@
+faster-whisper
+pydantic
+numpy
+fastapi
+uvicorn
