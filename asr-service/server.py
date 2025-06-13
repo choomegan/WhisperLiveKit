@@ -2,85 +2,84 @@
 Main server for handling audio trascription requests.
 """
 
+import logging
 import base64
-from typing import List
-
 import numpy as np
-from fastapi import FastAPI
+import grpc
+from concurrent import futures
+
 from faster_whisper import WhisperModel
-from faster_whisper.transcribe import Segment, TranscriptionInfo
+from asr_pb2 import Word, SegmentOutput, TranscriptionResponse
+import asr_pb2_grpc
 
-from schema import SegmentOutput, TranscriptionRequest, Word
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.getLogger().setLevel(logging.INFO)
+# logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 
-app = FastAPI()
-asr_engine = WhisperModel(
-    model_size_or_path="base", device="cuda", compute_type="float16"
-)
+class TranscriptionServiceServicer(asr_pb2_grpc.TranscriptionServiceServicer):
+    def __init__(self):
+        self.model = WhisperModel("base", device="cuda", compute_type="float16")
 
+    def Transcribe(self, request, context):
+        """
+        Processes a transcription request by decoding the base64-encoded audio,
+        transcribing it using the WhisperModel, and returning the transcription
+        segments.
 
-def encode_output(
-    segments: List[Segment],
-    info: TranscriptionInfo,
-) -> List[SegmentOutput]:
-    """
-    Encodes the output of a transcription process into a structured response.
+        Args:
+            request: A gRPC request containing the base64-encoded audio and an
+                    optional initial prompt for transcription.
+            context: gRPC context (not used in this method).
 
-    Args:
-        segments (List[Segment]):
-            A list of transcription segments, each containing text
-            and optional word-level information.
-        info (TranscriptionInfo):
-            Metadata and options related to the transcription,
-            including language and output preferences.
-    Returns:
-        List[SegmentOutput]: An object containing the concatenated outputs.
-    """
-    out_segments: List[SegmentOutput] = []
+        Returns:
+            TranscriptionResponse: A protobuf response containing the transcription
+            segments with word-level details and no-speech probabilities.
+        """
+        audio_bytes = base64.b64decode(request.audio_base64)
+        audio_array = np.frombuffer(audio_bytes, dtype=np.float32)
 
-    for segment in segments:
-        segment_words = None
-        if info.transcription_options.word_timestamps and hasattr(segment, "words"):
-            segment_words = [
-                Word(
-                    word=w.word,
-                    start=float(w.start),
-                    end=float(w.end),
-                    probability=float(w.probability),
-                )
-                for w in segment.words
-            ]
-
-        out_segments.append(
-            SegmentOutput(
-                no_speech_prob=float(getattr(segment, "no_speech_prob", 0.0)),
-                words=segment_words,
-            )
+        segments, info = self.model.transcribe(
+            audio_array,
+            language=None,
+            beam_size=5,
+            word_timestamps=True,
+            condition_on_previous_text=True,
+            initial_prompt=request.init_prompt,
         )
 
-    return out_segments
+        pb_segments = []
+        for segment in segments:
+            pb_words = []
+            if info.transcription_options.word_timestamps and hasattr(segment, "words"):
+                for w in segment.words:
+                    pb_words.append(Word(
+                        word=w.word,
+                        start=float(w.start),
+                        end=float(w.end),
+                        probability=float(w.probability)
+                    ))
+            pb_segments.append(SegmentOutput(
+                no_speech_prob=float(getattr(segment, "no_speech_prob", 0.0)),
+                words=pb_words
+            ))
 
+        return TranscriptionResponse(segments=pb_segments)
 
-@app.post("/transcribe")
-def transcribe(request: TranscriptionRequest):
+def serve():
     """
-    This endpoint receives an audio file and transcription parameters, processes the 
-    audio, performs speech-to-text inference using the loaded model, and returns the
-    transcription results in the specified response format.
-    """
-    # Decode base64 audio
-    audio_bytes = base64.b64decode(request.audio)
-    audio_array = np.frombuffer(audio_bytes, dtype=np.float32)  # Assuming float32 audio
+    Start the gRPC server and wait for termination.
 
-    segments, info = asr_engine.transcribe(
-        audio_array,
-        language=None,
-        beam_size=5,
-        word_timestamps=True,
-        condition_on_previous_text=True,
-        initial_prompt=request.init_prompt,
+    The server is set up to listen on port 50051 and runs in an executor with a maximum 
+    of 10 threads.
+    """
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    asr_pb2_grpc.add_TranscriptionServiceServicer_to_server(
+        TranscriptionServiceServicer(), server
     )
+    server.add_insecure_port("[::]:50051")
+    server.start()
+    logging.info("gRPC server started on port 50051")
+    server.wait_for_termination()
 
-    segments_list = list(segments)
-
-    response = encode_output(segments_list, info)
-    return response
+if __name__ == "__main__":
+    serve()
