@@ -133,3 +133,6 @@ run_*.sh
 
 # logging files
 *.txt
+
+# grpc files
+*_pb2*

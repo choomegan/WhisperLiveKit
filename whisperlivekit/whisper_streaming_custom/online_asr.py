@@ -198,7 +198,7 @@ class OnlineASRProcessor:
         # FIXME: add condition based on whether we are running monolith or making external request
         # under whisper_streaming_custom/backends.py
         res = self.asr.send_transcription_request(self.audio_buffer, init_prompt=prompt_text)
-        tokens = self.asr.ts_words_request(res)
+        tokens = self.asr.ts_words(res)
         self.transcript_buffer.insert(tokens, self.buffer_time_offset)
         committed_tokens = self.transcript_buffer.flush()
         self.committed.extend(committed_tokens)

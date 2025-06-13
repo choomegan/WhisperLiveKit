@@ -10,6 +10,8 @@ except ImportError:
 from typing import List
 import numpy as np
 from whisperlivekit.timed_objects import ASRToken
+import grpc
+from whisperlivekit.whisper_streaming_custom.protos import asr_pb2, asr_pb2_grpc
 import base64
 import requests
 import json
@@ -152,37 +154,19 @@ class FasterWhisperASR(ASRBase):
 
     def send_transcription_request(self, audio: np.ndarray, init_prompt: str = ""):
         """
-        Send transcription post request to an asr service
+        Send transcription request to an asr service
         """
-        """Send post request to asr service"""
         audio_bytes = audio.astype(np.float32).tobytes()
         audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
         
-        response = requests.post(
-            "http://asr-service:8001/transcribe",
-            json={"audio": audio_b64, "init_prompt": init_prompt}
-        )
-        response.raise_for_status()
-        result = response.json()
+        channel = grpc.insecure_channel("asr-service:50051")
+        stub = asr_pb2_grpc.TranscriptionServiceStub(channel)
 
-        return result
+        request = asr_pb2.TranscriptionRequest(audio_base64=audio_b64, init_prompt=init_prompt)
+        response = stub.Transcribe(request)
 
+        return response.segments
 
-    def ts_words_request(self, segments) -> List[ASRToken]:
-        """
-        Get words and timestamps from the transcription request response. 
-        Differs from ts_words() due to accessing of properties of a dict. 
-        """
-        tokens = []
-
-        for segment in segments:
-            print(segment)
-            if segment.get('no_speech_prob', 0.0) > 0.9:
-                continue
-            for word in segment.get('words', []):
-                token = ASRToken(word['start'], word['end'], word['word'], probability=word['probability'])
-                tokens.append(token)
-        return tokens
     
     def ts_words(self, segments) -> List[ASRToken]:
         tokens = []
@@ -195,6 +179,7 @@ class FasterWhisperASR(ASRBase):
         return tokens
 
     def segments_end_ts(self, segments) -> List[float]:
+        
         return [segment.end for segment in segments]
 
     def use_vad(self):

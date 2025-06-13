@@ -9,6 +9,21 @@ If you want to change the configurations (e.g. change whisper size, enable vac, 
 For diarization we are using pyannote models, follow instructions in README.md to accept the the user conditions on huggingface. Create file `hf_token.txt` and place hugginface token there. It will be read as a ENV variable during `docker compose up`.
 
 
+## Setting up for gRPC
+This project connects to the ASR service via gRPC
+
+Copy the proto file from [here](/asr-service/asr.proto) and place it under [this directory](/whisperlivekit/whisper_streaming_custom/protos/). 
+
+The auxillary pb files (e.g. _pb2_grpc.py, _pb2.pyi) are not commited to repository. Please generate them from the .proto files when necessary. 
+
+Run this command 1 directory before `/whisperlivekit`.
+```
+python3 -m grpc_tools.protoc -I. \
+--python_out=. \
+--grpc_python_out=. \
+whisperlivekit/whisper_streaming_custom/protos/asr.proto
+```
+
 ## Testing
 There is a testing script available under `/test`, which creates a websocket client and mocks a stream, without the need to record audio through the microphone in the frontend.
 

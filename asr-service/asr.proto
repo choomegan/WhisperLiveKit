@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+message Word {
+  string word = 1;
+  float start = 2;
+  float end = 3;
+  float probability = 4;
+}
+
+message SegmentOutput {
+  float start = 1;
+  float end = 2;
+  float no_speech_prob = 3;
+  repeated Word words = 4;
+}
+
+message TranscriptionRequest {
+  string audio_base64 = 1;
+  string init_prompt = 2;
+}
+
+message TranscriptionResponse {
+  repeated SegmentOutput segments = 1;
+}
+
+service TranscriptionService {
+  rpc Transcribe(TranscriptionRequest) returns (TranscriptionResponse);
+}

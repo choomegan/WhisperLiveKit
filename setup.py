@@ -15,6 +15,8 @@ setup(
         "faster-whisper",
         "uvicorn",
         "websockets",
+        "grpcio",
+        "grpcio-tools"
     ],
     extras_require={
         "diarization": ["diart"],

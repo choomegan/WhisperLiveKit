@@ -30,7 +30,7 @@ services:
       dockerfile: Dockerfile.asr
     container_name: asr-service
     ports:
-      - "8001:8000"
+      - "50051:50051"
     volumes:
       - ./asr-service:/asr-service
     working_dir: /asr-service
@@ -41,4 +41,4 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    command: ['uvicorn','server:app', "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    command: ["python3", "server.py"]
