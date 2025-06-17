@@ -9,10 +9,10 @@ class TranscriptionEngine:
     _instance = None
     _initialized = False
     
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs): # __new__ is called before __init__
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-        return cls._instance
+        return cls._instance # returns existing instance
     
     def __init__(self, **kwargs):
         if TranscriptionEngine._initialized:
