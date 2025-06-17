@@ -5,7 +5,7 @@ import librosa
 from functools import lru_cache
 import time
 import logging
-from .backends import FasterWhisperASR, MLXWhisper, WhisperTimestampedASR, OpenaiApiASR
+from .backends import FasterWhisperASR
 from .online_asr import OnlineASRProcessor, VACOnlineASRProcessor
 
 logger = logging.getLogger(__name__)
@@ -65,30 +65,18 @@ def create_tokenizer(lan):
 
 
 def backend_factory(args):
-    backend = args.backend
-    if backend == "openai-api":
-        logger.debug("Using OpenAI API.")
-        asr = OpenaiApiASR(lan=args.lan)
-    else:
-        if backend == "faster-whisper":
-            asr_cls = FasterWhisperASR
-        elif backend == "mlx-whisper":
-            asr_cls = MLXWhisper
-        else:
-            asr_cls = WhisperTimestampedASR
-
-        # Only for FasterWhisperASR and WhisperTimestampedASR
-        size = args.model
-        t = time.time()
-        logger.info(f"Loading Whisper {size} model for language {args.lan}...")
-        asr = asr_cls(
-            modelsize=size,
-            lan=args.lan,
-            cache_dir=args.model_cache_dir,
-            model_dir=args.model_dir,
-        )
-        e = time.time()
-        logger.info(f"done. It took {round(e-t,2)} seconds.")
+    # Only for FasterWhisperASR and WhisperTimestampedASR
+    size = args.model
+    t = time.time()
+    logger.info(f"Loading Whisper {size} model for language {args.lan}...")
+    asr = FasterWhisperASR(
+        modelsize=size,
+        lan=args.lan,
+        cache_dir=args.model_cache_dir,
+        model_dir=args.model_dir,
+    )
+    e = time.time()
+    logger.info(f"done. It took {round(e-t,2)} seconds.")
 
     # Apply common configurations
     if getattr(args, "vad", False):  # Checks if VAD argument is present and True
@@ -188,7 +176,7 @@ def warmup_asr(asr, warmup_file=None, timeout=5):
         return False
             
     # Process the audio
-    asr.transcribe(audio)
+    asr.send_transcription_request(audio)
 
     logger.info("Whisper is warmed up")
 
