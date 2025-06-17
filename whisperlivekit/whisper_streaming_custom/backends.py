@@ -25,11 +25,7 @@ class ASRBase:
     def __init__(self, lan, modelsize=None, cache_dir=None, model_dir=None, logfile=sys.stderr):
         self.logfile = logfile
         self.transcribe_kargs = {}
-        if lan == "auto":
-            self.original_language = None
-        else:
-            self.original_language = lan
-        self.model = self.load_model(modelsize, cache_dir, model_dir)
+        self.original_language=lan
 
     def with_offset(self, offset: float) -> ASRToken:
         # This method is kept for compatibility (typically you will use ASRToken.with_offset)
@@ -38,10 +34,10 @@ class ASRBase:
     def __repr__(self):
         return f"ASRToken(start={self.start:.2f}, end={self.end:.2f}, text={self.text!r})"
 
-    def load_model(self, modelsize, cache_dir, model_dir):
-        raise NotImplementedError("must be implemented in the child class")
+    # def load_model(self, modelsize, cache_dir, model_dir):
+    #     raise NotImplementedError("must be implemented in the child class")
 
-    def transcribe(self, audio, init_prompt=""):
+    def send_transcription_request(self, audio, init_prompt="", language="auto"):
         raise NotImplementedError("must be implemented in the child class")
 
     def use_vad(self):
@@ -53,41 +49,6 @@ class FasterWhisperASR(ASRBase):
     """Uses faster-whisper as the backend."""
     sep = ""
 
-    def load_model(self, modelsize=None, cache_dir=None, model_dir=None):
-        from faster_whisper import WhisperModel
-
-        if model_dir is not None:
-            logger.debug(f"Loading whisper model from model_dir {model_dir}. "
-                         f"modelsize and cache_dir parameters are not used.")
-            model_size_or_path = model_dir
-        elif modelsize is not None:
-            model_size_or_path = modelsize
-        else:
-            raise ValueError("Either modelsize or model_dir must be set")
-        device = "auto" # Allow CTranslate2 to decide available device
-        compute_type = "auto" # Allow CTranslate2 to decide faster compute type
-                              
-
-        model = WhisperModel(
-            model_size_or_path,
-            device=device,
-            compute_type=compute_type,
-            download_root=cache_dir,
-        )
-        return model
-
-    def transcribe(self, audio: np.ndarray, init_prompt: str = "") -> list:
-        segments, info = self.model.transcribe(
-            audio,
-            language=self.original_language,
-            initial_prompt=init_prompt,
-            beam_size=5,
-            word_timestamps=True,
-            condition_on_previous_text=True,
-            **self.transcribe_kargs,
-        )
-        return list(segments)
-
     def send_transcription_request(self, audio: np.ndarray, init_prompt: str = ""):
         """
         Send transcription request to an asr service
@@ -98,7 +59,7 @@ class FasterWhisperASR(ASRBase):
         channel = grpc.insecure_channel("asr-service:50051")
         stub = asr_pb2_grpc.TranscriptionServiceStub(channel)
 
-        request = asr_pb2.TranscriptionRequest(audio_base64=audio_b64, init_prompt=init_prompt)
+        request = asr_pb2.TranscriptionRequest(audio_base64=audio_b64, init_prompt=init_prompt, language=self.original_language)
         response = stub.Transcribe(request)
 
         return response.segments
