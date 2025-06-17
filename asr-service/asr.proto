@@ -17,6 +17,7 @@ message SegmentOutput {
 message TranscriptionRequest {
   string audio_base64 = 1;
   string init_prompt = 2;
+  string language = 3;
 }
 
 message TranscriptionResponse {
