@@ -1,3 +1,25 @@
+## Directory Structure
+```
+whisperlivekit/
+├── diarization/                    # Diarization logic
+|   └── diarization_online.py
+|
+├── web/ -------------------------- # Web frontend
+|   └── live_transcription.html
+|
+├── whisper_streaming_custom/ ----- # Whisper logic
+│   ├── protos/                     # gRPC protobuf definitions
+│   ├── __init__.py
+│   ├── backends.py                 # STT model backend (loading model, transcribe, requests)
+│   ├── online_asr.py               # Receives audio chunks, calls VAD & STT periodically
+│   ├── silero_vad_iterator.py      # VAD backend
+│   ├── whisper_online.py           # backend_factory, online_factory & warmup_asr
+|
+├── audio_processor.py              # Processes audio stream for STT & Diar, formats results
+├── basic_server.py                 # Defines FastAPI server that sets up Websocket endpoint for real-time STT
+├── core.py                         # Argument parsing & initialize WhisperLiveKit
+├── timed_objects.py                # Dataclass for timed objects
+```
 ## Quick Start with Docker
 To start the server and web client, run:
 ```
