@@ -14,7 +14,7 @@ import asr_pb2_grpc
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logging.getLogger().setLevel(logging.INFO)
-# logging.getLogger("faster_whisper").setLevel(logging.WARNING)
+logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 
 class TranscriptionServiceServicer(asr_pb2_grpc.TranscriptionServiceServicer):
     def __init__(self):
@@ -40,7 +40,7 @@ class TranscriptionServiceServicer(asr_pb2_grpc.TranscriptionServiceServicer):
 
         segments, info = self.model.transcribe(
             audio_array,
-            language=None,
+            language=request.language if request.language != "auto" else None,
             beam_size=5,
             word_timestamps=True,
             condition_on_previous_text=True,
@@ -48,6 +48,7 @@ class TranscriptionServiceServicer(asr_pb2_grpc.TranscriptionServiceServicer):
         )
 
         pb_segments = []
+        sentence = []
         for segment in segments:
             pb_words = []
             if info.transcription_options.word_timestamps and hasattr(segment, "words"):
@@ -58,11 +59,12 @@ class TranscriptionServiceServicer(asr_pb2_grpc.TranscriptionServiceServicer):
                         end=float(w.end),
                         probability=float(w.probability)
                     ))
+                    sentence.append(w.word)
             pb_segments.append(SegmentOutput(
                 no_speech_prob=float(getattr(segment, "no_speech_prob", 0.0)),
                 words=pb_words
             ))
-
+        logging.info("[Transcription]: %s", ''.join(sentence))
         return TranscriptionResponse(segments=pb_segments)
 
 def serve():
