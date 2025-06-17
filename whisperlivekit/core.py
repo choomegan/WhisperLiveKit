@@ -86,13 +86,13 @@ def parse_args():
         choices=["transcribe", "translate"],
         help="Transcribe or translate.",
     )
-    parser.add_argument(
-        "--backend",
-        type=str,
-        default="faster-whisper",
-        choices=["faster-whisper", "whisper_timestamped", "mlx-whisper", "openai-api"],
-        help="Load only this backend for Whisper processing.",
-    )
+    # parser.add_argument(
+    #     "--backend",
+    #     type=str,
+    #     default="faster-whisper",
+    #     choices=["faster-whisper", "whisper_timestamped", "mlx-whisper", "openai-api"],
+    #     help="Load only this backend for Whisper processing.",
+    # )
     parser.add_argument(
         "--vac",
         action="store_true",
@@ -147,10 +147,10 @@ class WhisperLiveKit:
     _instance = None
     _initialized = False
     
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs): # __new__ is called before __init__
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-        return cls._instance
+        return cls._instance # returns existing instance
     
     def __init__(self, **kwargs):
         if WhisperLiveKit._initialized:
