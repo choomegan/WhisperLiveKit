@@ -22,10 +22,11 @@ class ASRBase:
     sep = " "  # join transcribe words with this character (" " for whisper_timestamped,
               # "" for faster-whisper because it emits the spaces when needed)
 
-    def __init__(self, lan, modelsize=None, cache_dir=None, model_dir=None, logfile=sys.stderr):
+    def __init__(self, lan, grpc_channel="asr-service:50051", modelsize=None, cache_dir=None, model_dir=None, logfile=sys.stderr):
         self.logfile = logfile
         self.transcribe_kargs = {}
         self.original_language=lan
+        self.channel = grpc.insecure_channel(grpc_channel)
 
     def with_offset(self, offset: float) -> ASRToken:
         # This method is kept for compatibility (typically you will use ASRToken.with_offset)
@@ -49,18 +50,21 @@ class FasterWhisperASR(ASRBase):
     """Uses faster-whisper as the backend."""
     sep = ""
 
+    def __init__(self, lan: str, **kwargs):
+        super().__init__(lan, **kwargs)
+        # Now that channel exists, build the stub once:
+        self.stub = asr_pb2_grpc.TranscriptionServiceStub(self.channel)
+
     def send_transcription_request(self, audio: np.ndarray, init_prompt: str = ""):
         """
         Send transcription request to an asr service
         """
+        print(">>>>>>>>>>>>>>>>>>>>>>>>> SENDING TRANSCRIPTION REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>")
         audio_bytes = audio.astype(np.float32).tobytes()
         audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
-        
-        channel = grpc.insecure_channel("asr-service:50051")
-        stub = asr_pb2_grpc.TranscriptionServiceStub(channel)
 
         request = asr_pb2.TranscriptionRequest(audio_base64=audio_b64, init_prompt=init_prompt, language=self.original_language)
-        response = stub.Transcribe(request)
+        response = self.stub.Transcribe(request)
 
         return response.segments
 
