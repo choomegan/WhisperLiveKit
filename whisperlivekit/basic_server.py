@@ -97,7 +97,7 @@ def main():
         "app": "whisperlivekit.basic_server:app",
         "host":args.host, 
         "port":args.port, 
-        "reload": False,
+        "reload": True,
         "log_level": "info",
         "lifespan": "on",
     }
