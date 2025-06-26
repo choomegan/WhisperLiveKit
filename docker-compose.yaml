@@ -1,5 +1,7 @@
 services:
   whisperlivekit:
+    stdin_open: true
+    tty: true
     build:
       context: .
       args:
@@ -29,8 +31,6 @@ services:
       context: .
       dockerfile: Dockerfile.asr
     container_name: asr-service
-    ports:
-      - "50051:50051"
     volumes:
       - ./asr-service:/asr-service
     working_dir: /asr-service
