@@ -5,6 +5,11 @@ This repository hosts an Automatic Speech Recognition (ASR) service accessible v
 ## Setting up for gRPC
 The auxillary pb files (e.g. _pb2_grpc.py, _pb2.pyi) are not commited to repository. Please generate them from the .proto files when necessary.
 
+```
+# Uncomment `command` under asr-service first
+docker compose up asr-service -d
+```
+
 Run the following command
 ```
 python3 -m grpc_tools.protoc -I. \
@@ -16,5 +21,6 @@ asr.proto
 ## Set Up
 Run the following command to start up the service:
 ```
+# ensure container `command` is there
 docker compose up asr-service
 ```
