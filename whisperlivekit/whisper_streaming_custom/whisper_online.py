@@ -71,7 +71,7 @@ def backend_factory(args):
     logger.info(f"Loading Whisper {size} model for language {args.lan}...")
     asr = FasterWhisperASR(
         modelsize=size,
-        lan=args.lan
+        lan=args.lan,
         cache_dir=getattr(args, 'model_cache_dir', None),
         model_dir=getattr(args, 'model_dir', None),
     )
