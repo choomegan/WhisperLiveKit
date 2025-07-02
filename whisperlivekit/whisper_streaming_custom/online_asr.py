@@ -152,7 +152,7 @@ class OnlineASRProcessor:
     def insert_audio_chunk(self, audio: np.ndarray, audio_stream_end_time: Optional[float] = None):
         """Append an audio chunk (a numpy array) to the current audio buffer."""
         self.audio_buffer = np.append(self.audio_buffer, audio)
-
+        
     def prompt(self) -> Tuple[str, str]:
         """
         Returns a tuple: (prompt, context), where:
@@ -190,11 +190,32 @@ class OnlineASRProcessor:
 
         Returns a tuple: (list of committed ASRToken objects, float representing the audio processed up to time).
         """
+        
         current_audio_processed_upto = self.get_audio_buffer_end_time()
         prompt_text, _ = self.prompt()
+
+        # ---------- SIZE GUARD: keep on‑wire gRPC message < 4 MiB ----------
+        GRPC_LIMIT             = 4_194_304          # 4 MiB (server cap)
+        TAG_OVERHEAD_BYTE      = 1                  # per‑float protobuf tag
+        BYTES_PER_SAMPLE       = 4                  # float32 payload
+        WIRE_BYTES_PER_SAMPLE  = BYTES_PER_SAMPLE + TAG_OVERHEAD_BYTE  # = 5
+        SAFETY                 = 0.90               # 10 % breathing room
+        MAX_SAMPLES            = int(GRPC_LIMIT * SAFETY // WIRE_BYTES_PER_SAMPLE)
+
+        if self.audio_buffer.size > MAX_SAMPLES:
+            excess_samples = self.audio_buffer.size - MAX_SAMPLES
+            cut_secs       = excess_samples / self.SAMPLING_RATE
+            cut_time       = self.buffer_time_offset + cut_secs
+            self.chunk_at(cut_time)  # trims audio + keeps hypothesis consistent
+        # ------------------------------------------------------------------
+
         logger.debug(
-            f"Transcribing {len(self.audio_buffer)/self.SAMPLING_RATE:.2f} seconds from {self.buffer_time_offset:.2f}"
+            f"Transcribing {len(self.audio_buffer)/self.SAMPLING_RATE:.2f} seconds "
+            f"from {self.buffer_time_offset:.2f}"
         )
+
+        # -- the RPC is now guaranteed to stay under the size limit --
+
         # FIXME: add condition based on whether we are running monolith or making external request
         # under whisper_streaming_custom/backends.py
         res = self.asr.send_transcription_request(self.audio_buffer, init_prompt=prompt_text)
