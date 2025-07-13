@@ -13,8 +13,11 @@ from whisperlivekit.timed_objects import SpeakerSegment
 from diart.sources import MicrophoneAudioSource
 from rx.core import Observer
 from typing import Tuple, Any, List
-from pyannote.core import Annotation
+from pyannote.core import Annotation, Segment
 import diart.models as m
+
+import torch
+from pyannote.audio import Pipeline 
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +168,7 @@ class WebSocketAudioSource(AudioSource):
 
 
 class DiartDiarization:
-    def __init__(self, sample_rate: int = 16000, config : SpeakerDiarizationConfig = None, use_microphone: bool = False, block_duration: float = 0.5, segmentation_model_name: str = "pyannote/segmentation-3.0", embedding_model_name: str = "speechbrain/spkrec-ecapa-voxceleb"):
+    def __init__(self, sample_rate: int = 16000, config : SpeakerDiarizationConfig = None, use_microphone: bool = False, block_duration: float = 0.5, segmentation_model_name: str = "pyannote/segmentation-3.0", embedding_model_name: str = "pyannote/embedding-3.0"):
         segmentation_model = m.SegmentationModel.from_pretrained(segmentation_model_name)
         embedding_model = m.EmbeddingModel.from_pretrained(embedding_model_name)
         
@@ -173,6 +176,8 @@ class DiartDiarization:
             config = SpeakerDiarizationConfig(
                 segmentation=segmentation_model,
                 embedding=embedding_model,
+                latency=10,
+                duration=15,
             )
         
         self.pipeline = SpeakerDiarization(config=config)        
@@ -313,3 +318,66 @@ class DiartDiarization:
                 i += 1         
         
         return end_attributed_speaker
+
+# FIXME: finish and test incomplete class for OfflineChunkedDiarization
+class OfflineChunkedDiarization:
+    """
+    Class that implements offline diarization using pyannote/diarization-3.0. It
+    receives chunks from diarization_processor, processes them, and emits seegments and
+    speaker embeddings. Speaker embeddings are stored for global similarity checks.
+    """
+    def __init__(
+            self, diar_model_name: str = 'pyannote/diarization-3.0', 
+            spk_sim_threshold: float = 0.75,
+            chunk_len: int = 90,
+            overlap: int = 10,
+        ):
+        self.pipe =Pipeline.from_pretrained(diar_model_name)
+        self.spk_sim_threshold = spk_sim_threshold
+        self.chunk_len = chunk_len
+        self.overlap = overlap
+        self.centroids = []  # global speaker embeddings
+
+        self.pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+
+    def _cosine_similarity(self, a, b):
+        """Calculate cosine similarity between speaker embeddings"""
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
+
+    def _unit(self, x):
+        x = x.astype("float32")
+        return x / np.linalg.norm(x)
+
+    def _duty_zone(self, idx, n_chunks, t0, chunk_len, overlap):
+        # TODO: in streaming use case, idk what is n_chunks!!!!!
+        half = overlap / 2.0
+        left = half if idx > 0 else 0.0
+        right = half if idx < n_chunks - 1 else 0.0
+        return Segment(t0 + left, t0 + chunk_len - right)
+
+    def diarize_chunk(self, wav_chunk, idx, t0, chunk_len, overlap, sr, n_chunks, uri):
+        wav_tensor = torch.tensor(wav_chunk, dtype=torch.float32).unsqueeze(0)
+        diar, embeds = self.pipe({"waveform": wav_tensor, "sample_rate": sr}, return_embeddings=True)
+
+        local2global = {}
+        for lbl, vec in zip(diar.labels(), embeds):
+            if self.centroids:
+                sims = [self._cosine_similarity(vec, c) for c in self.centroids]
+                j = int(np.argmax(sims))
+                if sims[j] > self.sim_threshold:
+                    local2global[lbl] = j
+                    self.centroids[j] = self._unit(self.centroids[j] + vec)
+                    continue
+            self.centroids.append(vec)
+            local2global[lbl] = len(self.centroids) - 1
+
+        hyp = Annotation(uri=uri)
+        zone = self._duty_zone(idx, n_chunks, t0, chunk_len, overlap)
+
+        for seg, _, lbl in diar.itertracks(yield_label=True):
+            seg_abs = Segment(seg.start + t0, seg.end + t0)
+            piece = seg_abs & zone
+            if piece:
+                hyp[piece] = f"SPK_{local2global[lbl]:02d}"
+
+        return hyp
