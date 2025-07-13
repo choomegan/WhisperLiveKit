@@ -233,6 +233,8 @@ class OnlineASRProcessor:
         logger.debug(f"INCOMPLETE: {incomp.text}")
 
         buffer_duration = len(self.audio_buffer) / self.SAMPLING_RATE
+
+        # if no new commits for > buffer_trimming_sec, reset
         if not committed_tokens and buffer_duration > self.buffer_trimming_sec:
             time_since_last_output = self.get_audio_buffer_end_time() - self.time_of_last_asr_output
             if time_since_last_output > self.buffer_trimming_sec:
