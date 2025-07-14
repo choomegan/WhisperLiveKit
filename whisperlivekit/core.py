@@ -1,5 +1,8 @@
 try:
-    from whisperlivekit.whisper_streaming_custom.whisper_online import backend_factory, warmup_asr
+    from whisperlivekit.whisper_streaming_custom.whisper_online import (
+        backend_factory,
+        warmup_asr,
+    )
 except ImportError:
     from .whisper_streaming_custom.whisper_online import backend_factory, warmup_asr
 from argparse import Namespace
@@ -8,12 +11,12 @@ from argparse import Namespace
 class TranscriptionEngine:
     _instance = None
     _initialized = False
-    
-    def __new__(cls, *args, **kwargs): # __new__ is called before __init__
+
+    def __new__(cls, *args, **kwargs):  # __new__ is called before __init__
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-        return cls._instance # returns existing instance
-    
+        return cls._instance  # returns existing instance
+
     def __init__(self, **kwargs):
         if TranscriptionEngine._initialized:
             return
@@ -24,6 +27,7 @@ class TranscriptionEngine:
             "warmup_file": None,
             "confidence_validation": False,
             "diarization": False,
+            "diarization_type": "online",
             "punctuation_split": False,
             "min_chunk_size": 0.5,
             "model": "tiny",
@@ -54,39 +58,49 @@ class TranscriptionEngine:
             "init_prompt": None,
             "static_init_prompt": None,
             "max_context_tokens": None,
-            "model_path": './base.pt',
+            "model_path": "./base.pt",
         }
 
         config_dict = {**defaults, **kwargs}
 
-        if 'no_transcription' in kwargs:
-            config_dict['transcription'] = not kwargs['no_transcription']
-        if 'no_vad' in kwargs:
-            config_dict['vad'] = not kwargs['no_vad']
-        
-        config_dict.pop('no_transcription', None)
-        config_dict.pop('no_vad', None)
+        if "no_transcription" in kwargs:
+            config_dict["transcription"] = not kwargs["no_transcription"]
+        if "no_vad" in kwargs:
+            config_dict["vad"] = not kwargs["no_vad"]
 
-        if 'language' in kwargs:
-            config_dict['lan'] = kwargs['language']
-        config_dict.pop('language', None) 
+        config_dict.pop("no_transcription", None)
+        config_dict.pop("no_vad", None)
+
+        if "language" in kwargs:
+            config_dict["lan"] = kwargs["language"]
+        config_dict.pop("language", None)
 
         self.args = Namespace(**config_dict)
-        
+
         self.asr = None
         self.tokenizer = None
         self.diarization = None
-        
+
         if self.args.transcription:
             self.asr, self.tokenizer = backend_factory(self.args)
             warmup_asr(self.asr, self.args.warmup_file)
 
         if self.args.diarization:
-            from whisperlivekit.diarization.diarization_online import DiartDiarization
-            self.diarization = DiartDiarization(
-                block_duration=self.args.min_chunk_size,
-                segmentation_model_name=self.args.segmentation_model,
-                embedding_model_name=self.args.embedding_model
-            )
-            
+            if self.args.diarization_type == "online":
+                from whisperlivekit.diarization.diarization_online import (
+                    DiartDiarization,
+                )
+
+                self.diarization = DiartDiarization(
+                    block_duration=self.args.min_chunk_size,
+                    segmentation_model_name=self.args.segmentation_model,
+                    embedding_model_name=self.args.embedding_model,
+                )
+            else:  # offline chunked diarization
+                from whisperlivekit.diarization.diarization_online import (
+                    OfflineChunkedDiarization,
+                )
+
+            self.diarization = OfflineChunkedDiarization()
+
         TranscriptionEngine._initialized = True
