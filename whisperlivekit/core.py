@@ -101,6 +101,6 @@ class TranscriptionEngine:
                     OfflineChunkedDiarization,
                 )
 
-            self.diarization = OfflineChunkedDiarization()
+                self.diarization = OfflineChunkedDiarization()
 
         TranscriptionEngine._initialized = True
