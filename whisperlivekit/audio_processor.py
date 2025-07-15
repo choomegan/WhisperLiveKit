@@ -216,12 +216,6 @@ class AudioProcessor:
 
                 self.pcm_buffer.extend(chunk)
 
-                # Send to diarization if enabled
-                if self.args.diarization and self.diarization_queue:
-                    await self.diarization_queue.put(
-                        self.convert_pcm_to_float(self.pcm_buffer).copy()
-                    )
-
                 # Process when enough data
                 if len(self.pcm_buffer) >= self.bytes_per_sec:
                     if len(self.pcm_buffer) > self.max_bytes_per_sec:
@@ -239,6 +233,10 @@ class AudioProcessor:
                     # Send to transcription if enabled
                     if self.args.transcription and self.transcription_queue:
                         await self.transcription_queue.put(pcm_array.copy())
+
+                    # Send to diarization if enabled
+                    if self.args.diarization and self.diarization_queue:
+                        await self.diarization_queue.put(pcm_array.copy())
 
                     # Sleep if no processing is happening
                     if not self.args.transcription and not self.args.diarization:
