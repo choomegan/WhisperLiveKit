@@ -406,7 +406,6 @@ class OfflineChunkedDiarization:
         """
         Keep centre part of audio and prevent overlap of identified speaker segments
         """
-        print(f"[_duty_zone]: is first is {is_first}")
         half = self.overlap / 2.0
         left = half if is_first else 0.0  # keep left half‑overlap if not first chunk
         right = half  # keep right half‑overlap
