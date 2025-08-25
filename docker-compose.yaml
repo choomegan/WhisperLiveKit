@@ -21,7 +21,7 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    command: ["whisperlivekit-server", "--host", "0.0.0.0", "--model", "base", "--log-level", "INFO", "--vac"] #, "--diarization"]
+    command: ["whisperlivekit-server", "--host", "0.0.0.0", "--model", "base", "--lan", "en", "--log-level", "INFO", "--vac", "--diarization", "--diarization_type", "offline"]
 
 
   asr-service:
