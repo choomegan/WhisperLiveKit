@@ -2,6 +2,7 @@ services:
   whisperlivekit:
     stdin_open: true
     tty: true
+    image: active-listener/whisperlivekit:cuda-12.2
     build:
       context: .
       args:
@@ -27,6 +28,7 @@ services:
   asr-service:
     stdin_open: true
     tty: true
+    image: active-listener/asr-service:cuda-12.2
     build:
       context: .
       dockerfile: Dockerfile.asr

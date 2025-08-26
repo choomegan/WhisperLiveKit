@@ -1,4 +1,5 @@
-faster-whisper
+ctranslate2==4.4.0
+faster-whisper==1.1.0
 numpy
 grpcio
 grpcio-tools
